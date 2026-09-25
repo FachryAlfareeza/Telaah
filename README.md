@@ -15,6 +15,8 @@ Or double-click `start.cmd`. Vite serves both UI and API. The database is create
 
 ## Try immediately
 
+The site opens with a mock login/register screen. Use **Masuk dengan akun demo**, or register an example account on this browser. Names, emails, and salted PBKDF2 password hashes are stored in local storage; the signed-in profile uses session storage. Logout clears the session and returns to login. This is a UI mockup only: it does not protect server APIs, verify email, or provide production authentication. Do not use real credentials.
+
 Click **Coba simulasi**. The server reads fictional references from SQLite and returns a labeled prepared answer for a sample TOR: 80 participants compared with a fictional minimum of 100, and Rp18,000,000 revenue compared with 80 × Rp250,000 = Rp20,000,000. No real regulatory claim is made. Simulation does not call AI, transmit, or overwrite the user's TOR.
 
 ## Enable actual AI
