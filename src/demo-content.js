@@ -1,0 +1,2 @@
+export const demoTor = 'TOR CONTOH — SIMULASI, BUKAN DOKUMEN NYATA\n\nBagian 1. Tujuan\nPelatihan kompetensi bagi peserta program contoh.\n\nBagian 2. Volume peserta\nKegiatan menargetkan 80 peserta dalam satu angkatan.\n\nBagian 3. Penerimaan\nTarif ditetapkan Rp250.000 per peserta. Target penerimaan adalah Rp18.000.000.';
+export const demoQuestion = 'Apakah volume peserta dan target penerimaan dalam TOR sesuai dengan acuan? Jelaskan angka yang berbeda dan dasar perhitungannya.';

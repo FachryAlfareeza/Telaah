@@ -1,0 +1,9 @@
+{
+  "name": "telaah-planning-evaluation",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": { "dev": "vite --host 127.0.0.1", "build": "vite build", "preview": "vite preview --host 127.0.0.1", "start": "node server/index.js", "import:references": "node --env-file-if-exists=.env server/import-references.js", "test": "node --test server/analysis.test.js" },
+  "dependencies": { "@tailwindcss/vite": "^4.1.0", "tailwindcss": "^4.1.0", "vite": "^6.1.0", "react": "^19.0.0", "react-dom": "^19.0.0", "react-hook-form": "^7.54.0", "lucide-react": "^0.468.0" },
+  "devDependencies": {}
+}

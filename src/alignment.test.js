@@ -1,0 +1,12 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { summarize, evidenceIssues } from './alignment.js';
+const items = [{ key: 'a' }, { key: 'b' }, { key: 'c' }];
+const sources = [{ key: 's', title: 'Acuan uji', text: 'Target program adalah 100 peserta.' }];
+const tor = 'Tujuan kegiatan adalah pelatihan 50 peserta.';
+const valid = { rating: 'partial', torLocation: 'Tujuan', torQuote: 'pelatihan 50 peserta', sourceKey: 's', sourceLocation: 'Pasal 1', sourceQuote: '100 peserta', reason: 'Target TOR lebih rendah dari target acuan.', confirmed: true };
+test('No evidence yields unavailable alignment', () => { const s = summarize(items, {}, sources, tor); assert.equal(s.alignment, null); assert.equal(s.coverage, 0); });
+test('Scores confirmed evidence and reports coverage', () => { const s = summarize(items, { a: valid, b: { ...valid, rating: 'aligned' } }, sources, tor); assert.equal(s.alignment, 75); assert.equal(s.coverage, 67); assert.equal(s.pending, 1); assert.equal(s.discrepancies, 1); });
+test('Mismatched quotes, deleted sources, and unconfirmed ratings are excluded', () => { for (const change of [{ torQuote: 'invented' }, { sourceQuote: 'invented' }, { sourceKey: 'deleted' }, { confirmed: false }, { reason: ' ' }]) assert.ok(evidenceIssues({ ...valid, ...change }, sources, tor).length); });
+test('Confirmed discrepancy counts as zero', () => { const s = summarize(items, { a: { ...valid, rating: 'discrepancy' } }, sources, tor); assert.equal(s.alignment, 0); assert.equal(s.reviewed, 1); });
+test('Copied whitespace and case differences are allowed', () => { assert.deepEqual(evidenceIssues({ ...valid, torQuote: 'PELATIHAN  50\nPESERTA' }, sources, tor), []); });
