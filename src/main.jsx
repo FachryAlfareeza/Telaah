@@ -5,4 +5,5 @@ import './styles.css';
 import './workspace.css';
 import './theme.css';
 import './auth.css';
+import './tables.css';
 createRoot(document.getElementById('root')).render(<AuthApp/>);

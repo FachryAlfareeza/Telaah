@@ -1,5 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { prepareChecks, coverRequestedChecks } from './batch.js';
+test('Batch checks validate all rows and include each check in retrieval prompt', () => {
+  const body = { checks:[{id:'a',aspect:'Peserta',detail:'Periksa volume'},{id:'b',aspect:'Pendapatan',detail:'Periksa tarif'}] };
+  prepareChecks(body); assert.match(body.prompt,/Peserta/); assert.match(body.prompt,/Pendapatan/);
+  assert.throws(()=>prepareChecks({checks:[]}));
+  assert.throws(()=>prepareChecks({checks:[{id:'a',aspect:'',detail:'X'}]}));
+  assert.throws(()=>prepareChecks({checks:[body.checks[0],body.checks[0]]}));
+});
+test('Missing AI rows remain explicit gaps and unrequested findings are excluded', () => {
+  const requested=[{id:'a',aspect:'Peserta'},{id:'b',aspect:'Tarif'}];
+  const out=coverRequestedChecks({findings:[{checkId:'a',aspect:'Wrong label'},{checkId:'unexpected'}]},requested);
+  assert.equal(out.findings.length,2); assert.equal(out.findings[0].aspect,'Peserta'); assert.equal(out.findings[1].status,'insufficient'); assert.equal(out.findings[1].checkId,'b');
+});
 import { openDatabase, importDocuments, library, retrieve } from './database.js';
 import { seedDemo, demoAnalysis } from './demo.js';
 import { validateInput, groundAnalysis, analyzeWithAI } from './analysis.js';

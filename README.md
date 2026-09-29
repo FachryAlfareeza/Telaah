@@ -57,9 +57,10 @@ Imports update by document ID atomically. Split passages longer than 10,000 char
 
 ## Analysis and limitations
 
-- PDF up to 10 MB; pasted text up to 160,000 characters; prompt up to 4,000 characters.
+- PDF up to 10 MB; pasted text up to 160,000 characters; up to 10 checks per request, each with an aspect (100 characters) and question (600 characters).
 - The configured model reads native PDF input. No separate local OCR is included; unreadable content must be reported as insufficient evidence.
 - Active real passages are ranked by question keywords and participant/revenue synonyms. Up to 60,000 characters of complete passages are sent. Small libraries are included in full. This is lightweight retrieval, not embedding search. Omitted passage counts are disclosed; library completeness and applicability still require human review.
+- Input and results use tables. Each requested check is retained, including checks with insufficient evidence. Numerical findings show formulas, results, differences, and units; calculations require human review.
 - Answers include aspect-specific findings, TOR locations and quotations, reference citations, numerical reasoning, follow-up options, and limitations.
 - The server checks reference quotes against retrieved database text, and TOR quotes against pasted text. Invalid evidence downgrades a finding to insufficient evidence. PDF quotations and page numbers still require review against the original file.
 - An indicative index averages evidenced aspects: aligned 100, partial 50, discrepancy 0. Unknown aspects are excluded and coverage is displayed. No evidence means no score. This is neither an accuracy probability nor a whole-document approval.
@@ -74,6 +75,6 @@ Imports update by document ID atomically. Split passages longer than 10,000 char
 - `server/api.js`: same-origin API, upload limit, timeout, concurrency limit.
 - `server/demo.js`: fictional seed and prepared simulation.
 - `server/index.js`: production server.
-- `npm test`: eight tests covering database, simulation isolation, citation validity, coverage, PDF validation, and mocked Responses integration.
+- `npm test`: ten tests covering database, simulation isolation, citation validity, coverage, PDF validation, and mocked Responses integration.
 
 Previous manual evaluation components remain in the source tree for reference but are not loaded by the active UI.
