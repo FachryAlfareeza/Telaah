@@ -1,6 +1,6 @@
-# Telaah — AI-assisted TOR analysis
+# Telaah — Pengajuan kegiatan Satker & telaah Rocan
 
-Users upload a TOR PDF or paste text, then ask a natural-language question. Supporting documents live in a server-side SQLite database. The evaluator does not enter reference documents.
+Telaah is a local mockup for activity submissions, initial AI screening, and human review. Satker submits activities with TOR/RAB; Rocan reviews submissions and manages the reference library. AI screening supports the decision. Only Rocan approves or rejects an activity.
 
 ## Run
 
@@ -11,61 +11,58 @@ npm install
 npm run dev
 ```
 
-Or double-click `start.cmd`. Vite serves both UI and API. The database is created at `data/references.sqlite` on first use. `npm run build` builds the frontend; `npm start` serves the production UI and API at http://127.0.0.1:4173. This is a local single-user mockup, not an authenticated public service.
+Or double-click `start.cmd`. Vite serves both the UI and API. For production build testing, run `npm run build`, then `npm start` (http://127.0.0.1:4173).
 
-## Try immediately
+## Try the two roles
 
-The site opens with a mock login/register screen. Use **Masuk dengan akun demo**, or register an example account on this browser. Names, emails, and salted PBKDF2 password hashes are stored in local storage; the signed-in profile uses session storage. Logout clears the session and returns to login. This is a UI mockup only: it does not protect server APIs, verify email, or provide production authentication. Do not use real credentials.
+1. Choose **Demo Satker** on the login screen, or register a local example account with the Satker role and unit name.
+2. Select **Ajukan kegiatan**, enter title, description, activity date, and type. Upload one PDF containing both TOR and RAB, or separate TOR and RAB PDFs. Each file is limited to 10 MB.
+3. For offline workflow testing, explicitly choose **Simulasi · lanjut ke Rocan** or **Simulasi · perlu perbaikan**. These are prepared examples and do not analyze uploaded content. All simulation findings and submissions are labeled.
+4. Satker sees correction findings and can revise and resubmit a returned application. Existing PDFs may be retained when revising.
+5. Log out and choose **Demo Rocan**. The same server database supplies submissions across Satker accounts. Sort by submission time and filter by submission date, Satker, or status.
+6. Open a submission to download TOR/RAB, inspect the full screening table and confidence, and approve, reject, or return it with a required decision note. Review acknowledgment is required in the UI.
+7. In **Dokumen acuan**, upload reference PDFs, set validity start/end dates, and enable or disable their use. Leave the end date blank for an open-ended period.
 
-Click **Coba simulasi**. The server reads fictional references from SQLite and returns a labeled prepared answer for a sample TOR: 80 participants compared with a fictional minimum of 100, and Rp18,000,000 revenue compared with 80 × Rp250,000 = Rp20,000,000. No real regulatory claim is made. Simulation does not call AI, transmit, or overwrite the user's TOR.
+## Workflow states
 
-## Enable actual AI
+| Status | Meaning / next action |
+| --- | --- |
+| Menunggu screening | Submission is saved; retry screening if AI or references are unavailable. |
+| Perlu perbaikan | Fatal screening finding or Rocan requests changes; Satker edits and resubmits. |
+| Menunggu Rocan | Screening has no fatal findings; awaiting a human decision. |
+| Perlu telaah manual | Evidence or mandatory screening aspects are incomplete; Rocan must review. |
+| Disetujui / Ditolak | Rocan's recorded decision and reason are visible to Satker. |
 
-1. Copy `.env.example` to `.env`. Set `OPENAI_API_KEY` and `OPENAI_MODEL` to a model accessible to your account supporting PDF input and structured outputs. Never put keys in VITE_* variables.
-2. Import real reference passages using the administrator CLI below. Fictional documents are always excluded from real analysis.
-3. Restart after configuration changes.
+The table shows all submissions, including those awaiting screening or revision. Only submissions awaiting Rocan or manual review expose decision controls. Screening never approves or rejects an activity. History records submission, screening, resubmission, and human decisions.
 
-The integration uses the OpenAI Responses API with native PDF input and structured output, with `store: false`. The TOR is transmitted with selected reference passages only when the user submits a real analysis. This app does not persist TOR files or conversations. Provider-side processing policies still apply.
+## Reference validity
 
-Official integration references: [PDF/file inputs](https://developers.openai.com/api/docs/guides/file-inputs), [structured outputs](https://developers.openai.com/api/docs/guides/structured-outputs).
+Screening selects enabled references whose inclusive validity period contains the **activity date**. The library's **Status hari ini** is calculated separately using today's date in Asia/Jakarta. A future or expired reference can therefore apply to an activity within its period. Manual deactivation excludes the reference regardless of dates.
 
-## Administrator reference import
+Changes apply to future screenings; stored results retain the reference metadata and findings used at screening time. To replace a PDF, add a new reference/version and disable the old one as needed. This mockup does not automatically resolve conflicting or superseded regulations.
 
-Prepare a JSON array outside the public web directory. This is a format example, not a real regulation:
+## Enable actual AI screening
 
-```json
-[
-  {
-    "id": "your-stable-document-id",
-    "title": "Official regulation title and number",
-    "type": "Permen",
-    "version": "Verified version / effective date",
-    "url": "https://example.org/official-document",
-    "active": true,
-    "passages": [
-      { "location": "Article / paragraph / page", "text": "Verbatim verified provision" }
-    ]
-  }
-]
-```
+1. Copy `.env.example` to `.env`, then set `OPENAI_API_KEY` and `OPENAI_MODEL` to an accessible model supporting PDF inputs and structured outputs. Never expose keys using `VITE_*` variables.
+2. Log in as Rocan and upload real reference PDFs with their validity periods.
+3. Restart after environment configuration changes. Submit with **AI · dokumen sebenarnya** selected, or retry a saved pending submission.
 
-```sh
-npm run import:references -- path/to/references.json
-```
+The server sends TOR, optional separate RAB, and applicable reference PDFs through the OpenAI Responses API with `store: false`. Native PDF input follows the [official file-input guide](https://developers.openai.com/api/docs/guides/file-inputs). Real screening is limited to eight applicable reference PDFs and 40 million base64 reference characters per request; exceeding the limit leaves screening pending instead of silently omitting references. Two screenings can run concurrently, with a 120-second timeout. Provider context limits may impose smaller practical limits.
 
-Imports update by document ID atomically. Split passages longer than 10,000 characters at meaningful section boundaries. Use `active: false` to retire references. The evaluator sees a read-only library. Set `REFERENCE_DB` to change the SQLite path. Do not reuse reserved ID `demo-training`.
+Screening covers document completeness, goals, needs/volume, rates, allocation, and TOR/RAB total consistency. Missing returned aspects are explicitly marked as insufficient evidence. Unknown reference IDs and missing quotes/locations cannot substantiate fatal findings. PDF quotations and arithmetic still require human verification; the app does not independently extract and verify PDF text.
 
-## Analysis and limitations
+**Confidence is an AI self-estimate, not a calibrated probability or a compliance score.** Rocan sees per-finding confidence and an unweighted mean when every finding is assessable. If any aspect lacks evidence, overall confidence is unavailable. Satker receives correction findings without internal confidence values. No live provider calls were used in development verification; tests mock provider responses.
 
-- PDF up to 10 MB; pasted text up to 160,000 characters; up to 10 checks per request, each with an aspect (100 characters) and question (600 characters).
-- The configured model reads native PDF input. No separate local OCR is included; unreadable content must be reported as insufficient evidence.
-- Active real passages are ranked by question keywords and participant/revenue synonyms. Up to 60,000 characters of complete passages are sent. Small libraries are included in full. This is lightweight retrieval, not embedding search. Omitted passage counts are disclosed; library completeness and applicability still require human review.
-- Input and results use tables. Each requested check is retained, including checks with insufficient evidence. Numerical findings show formulas, results, differences, and units; calculations require human review.
-- Answers include aspect-specific findings, TOR locations and quotations, reference citations, numerical reasoning, follow-up options, and limitations.
-- The server checks reference quotes against retrieved database text, and TOR quotes against pasted text. Invalid evidence downgrades a finding to insufficient evidence. PDF quotations and page numbers still require review against the original file.
-- An indicative index averages evidenced aspects: aligned 100, partial 50, discrepancy 0. Unknown aspects are excluded and coverage is displayed. No evidence means no score. This is neither an accuracy probability nor a whole-document approval.
-- Evaluators may mark a result reviewed. This does not approve or reject the TOR. JSON export includes citations, scope, limitations, and review state.
-- Real AI calls require credentials and real references. No external AI call was made during development; provider tests use fixtures.
+The separate indicative alignment index averages evidenced findings (aligned 100, partial 50, discrepancy 0). Insufficient-evidence findings are excluded and evidence coverage is displayed. This index is not an approval or a measurement of the entire activity's correctness.
+
+## Storage and mock authentication
+
+The app creates `data/references.sqlite` automatically (override with `REFERENCE_DB`). The `workflow_records` table persists activity metadata, PDF bytes encoded as base64, reference periods, screening snapshots, and decisions. Uploaded documents now remain on the local server for Rocan review; they are not discarded after screening. Back up the database to preserve them.
+
+Login/register remains a **local UI mockup**: salted PBKDF2 password hashes are stored in browser local storage and the signed-in profile in session storage. API role/ownership checks use the client-supplied `X-Telaah-Profile` header, which is not trustworthy authentication. Self-selecting Rocan is only for mockup testing. Before shared/public deployment, replace this with server-verified sessions, managed role assignment, and a file retention/access policy. Use example credentials and data for this mockup.
+
+The prior single-TOR analysis and reference-passage CLI remain in the repository for compatibility. Their `documents`/`passages` library is separate from the new PDF reference library; the new workflow uses references uploaded by Rocan. Existing browser accounts without a role default to Satker.
+
 
 ## File structure
 
@@ -76,7 +73,9 @@ Telaah/
 ├── src/
 │   ├── main.jsx               # React entry point and stylesheet imports
 │   ├── AuthApp.jsx            # Mock login, registration, and session handling
-│   ├── AIWorkspace.jsx        # TOR upload, checks, and analysis workflow
+│   ├── WorkflowApp.jsx        # Satker submissions, Rocan review, reference library
+│   ├── workflow.css           # Responsive workflow and role dashboards
+│   ├── AIWorkspace.jsx        # Previous single-TOR analysis workspace
 │   ├── CheckTables.jsx        # Editable checks and results tables
 │   ├── ThemeToggle.jsx        # Light/dark mode control
 │   ├── demo-content.js        # Sample TOR and question
@@ -92,6 +91,10 @@ Telaah/
 ├── server/
 │   ├── index.js               # Production UI and API server
 │   ├── api.js                 # API routes, request limits, and timeouts
+│   ├── workflow-api.js        # Role-aware submission and reference endpoints
+│   ├── workflow.js            # SQLite records, validation, periods, decisions
+│   ├── workflow-screening.js  # Multi-PDF screening and labeled simulation
+│   ├── workflow.test.js       # Role, workflow, period, and AI fixture tests
 │   ├── analysis.js            # AI requests, validation, and citation checks
 │   ├── batch.js               # Multiple-check validation and result coverage
 │   ├── database.js            # SQLite storage and reference retrieval
@@ -114,8 +117,7 @@ Telaah/
 
 The database is generated on first use; `dist/` is generated by `npm run build`, and `node_modules/` by `npm install`. Local configuration belongs in a Git-ignored `.env` file copied from `.env.example`.
 
+
 ## Checks
 
-- `npm test`: ten tests covering database, simulation isolation, citation validity, coverage, PDF validation, and mocked Responses integration.
-
-Previous manual evaluation components remain in the source tree for reference but are not loaded by the active UI.
+Run `npm test` for the backend and workflow tests, and `npm run build` for the production UI build. Tests cover combined/separate uploads, validity boundaries, role visibility, revision/resubmission/decision flow, incomplete evidence, and mocked multi-PDF AI requests.
