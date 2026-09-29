@@ -1,18 +1,18 @@
 /* Semantic colors shared by the input, library, dialogs, and results. */
 :root {
   color-scheme: light;
-  --page: #f3f6f4;
+  --page: #f4f5f5;
   --surface: #ffffff;
-  --surface-soft: #edf3ef;
-  --surface-hover: #dfeae3;
-  --ink: #182d24;
-  --muted: #4b6256;
-  --accent: #235c3c;
-  --border: #bbcfc1;
-  --control-border: #718b7a;
-  --focus: #216b46;
-  --primary: #245b3c;
-  --primary-hover: #17482c;
+  --surface-soft: #eef0ef;
+  --surface-hover: #e3e7e5;
+  --ink: #262b29;
+  --muted: #59625e;
+  --accent: #4b6558;
+  --border: #cbd0cd;
+  --control-border: #858e89;
+  --focus: #526f60;
+  --primary: #4c6558;
+  --primary-hover: #3b5145;
   --primary-ink: #ffffff;
   --warning-bg: #fff3d6;
   --warning-ink: #74500d;
@@ -20,34 +20,34 @@
   --error-bg: #fff0e9;
   --error-ink: #913f22;
   --error-border: #c28a72;
-  --success-bg: #e2f2e7;
-  --success-ink: #255a37;
-  --overlay: #10291fa6;
+  --success-bg: #e8eeea;
+  --success-ink: #42604c;
+  --overlay: #202422a6;
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --page: #101a17;
-  --surface: #192820;
-  --surface-soft: #22362b;
-  --surface-hover: #304b3b;
-  --ink: #edf5ee;
-  --muted: #b8cabc;
-  --accent: #a6dfb8;
-  --border: #496652;
-  --control-border: #769782;
-  --focus: #b8edc7;
-  --primary: #ace0ba;
-  --primary-hover: #cef2d7;
-  --primary-ink: #132d1d;
-  --warning-bg: #3a301c;
-  --warning-ink: #f4d591;
-  --warning-border: #9b804b;
-  --error-bg: #3d2821;
-  --error-ink: #ffc4a8;
-  --error-border: #b48068;
-  --success-bg: #234732;
-  --success-ink: #b5e9c3;
-  --overlay: #030b08c9;
+  --page: #17191a;
+  --surface: #212425;
+  --surface-soft: #2b2f30;
+  --surface-hover: #363c3a;
+  --ink: #eceeed;
+  --muted: #b8bfbb;
+  --accent: #b0c4b7;
+  --border: #484e4b;
+  --control-border: #79837d;
+  --focus: #bacfc1;
+  --primary: #b0c4b7;
+  --primary-hover: #c6d5cb;
+  --primary-ink: #202923;
+  --warning-bg: #343027;
+  --warning-ink: #dcc89f;
+  --warning-border: #8d8063;
+  --error-bg: #362b29;
+  --error-ink: #ddb5a8;
+  --error-border: #977a6f;
+  --success-bg: #2c3830;
+  --success-ink: #b5cbb9;
+  --overlay: #0a0c0dc9;
 }
 html, body { background: var(--page); color: var(--ink); }
 .ai-workspace { color: var(--ink); }
