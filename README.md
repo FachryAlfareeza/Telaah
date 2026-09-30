@@ -2,7 +2,18 @@
 
 Telaah is a local mockup for activity submissions, initial AI screening, and human review. Satker submits activities with TOR/RAB; Rocan reviews submissions and manages the reference library. AI screening supports the decision. Only Rocan approves or rejects an activity.
 
-## Run
+## GitHub Pages demo
+
+The public browser-only demo is deployed at https://fachryalfareeza.github.io/Telaah/. GitHub Pages cannot run the Node/SQLite server. This build uses IndexedDB for submissions, uploaded PDFs, and reference documents on the current browser; data is not shared between devices. Sign out and switch between **Demo Satker** and **Demo Rocan** in the same browser to try the workflow. Screening is simulation only, clearly labeled; no AI credentials or server database are published.
+
+```sh
+npm run build:pages
+node scripts/github-pages.mjs deploy
+```
+
+The deploy script uses the existing Git credential helper without printing credentials, publishes only `dist/` to `gh-pages`, and configures Pages to serve that branch. Repository admin access is required for initial configuration. It preserves deployment history and does not push the source branch. `node scripts/github-pages.mjs status` and `node scripts/github-pages.mjs build` check the site configuration and latest build. The normal `npm run dev` / `npm start` version continues to use the local server.
+
+## Run locally
 
 Requires Node 22.13+ (`node:sqlite` is experimental on Node 22).
 
@@ -68,12 +79,18 @@ The prior single-TOR analysis and reference-passage CLI remain in the repository
 
 ```text
 Telaah/
+├── scripts/
+│   └── github-pages.mjs       # Publish built files and inspect Pages status
+├── shared/
+│   ├── workflow.js            # Shared validation and workflow rules
+│   └── workflow-simulation.js # Labeled example screening results
 ├── public/
 │   └── theme-init.js          # Apply saved theme before the page renders
 ├── src/
 │   ├── main.jsx               # React entry point and stylesheet imports
 │   ├── AuthApp.jsx            # Mock login, registration, and session handling
 │   ├── WorkflowApp.jsx        # Satker submissions, Rocan review, reference library
+│   ├── pages-api.js           # IndexedDB workflow adapter for the Pages demo
 │   ├── workflow.css           # Responsive workflow and role dashboards
 │   ├── AIWorkspace.jsx        # Previous single-TOR analysis workspace
 │   ├── CheckTables.jsx        # Editable checks and results tables

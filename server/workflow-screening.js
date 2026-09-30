@@ -1,3 +1,4 @@
+export { simulationScreening } from '../shared/workflow-simulation.js';
 const str={type:'string'};
 export const requiredAspects={completeness:'Kelengkapan TOR dan RAB',goals:'Tujuan dan sasaran',needs:'Kebutuhan dan volume',rates:'Tarif dan satuan biaya',allocation:'Alokasi anggaran',consistency:'Total dan konsistensi TOR–RAB'};
 const obj=properties=>({type:'object',additionalProperties:false,properties,required:Object.keys(properties)});
@@ -14,10 +15,6 @@ export function normalizeScreening(raw,refs) {
   const known=findings.filter(f=>f.status!=='insufficient');
   const alignment=known.length?Math.round(known.reduce((n,f)=>n+({aligned:100,partial:50,discrepancy:0}[f.status]),0)/known.length):null;
   return {summary:raw.summary,findings,alignment,coverage:Math.round(known.length/findings.length*100),fatal:findings.some(f=>f.severity==='fatal'),confidence:findings.every(f=>f.confidence!==null)?Math.round(findings.reduce((n,f)=>n+f.confidence,0)/findings.length):null,generatedAt:new Date().toISOString(),references:refs.map(({file,...d})=>d),demo:false};
-}
-export function simulationScreening(refs,scenario='pass') {
-  const fatal=scenario==='revision';
-  return {demo:true,fatal,alignment:fatal?0:100,coverage:100,confidence:88,generatedAt:new Date().toISOString(),summary:'SIMULASI: hasil contoh untuk menguji alur; tidak membaca dokumen unggahan.',references:[],findings:[{aspect:'Tujuan kegiatan (contoh)',status:fatal?'discrepancy':'aligned',severity:fatal?'fatal':'info',location:'Contoh bagian tujuan — bukan lokasi dokumen Anda',quote:'Data contoh',reason:fatal?'Contoh tujuan belum sesuai sasaran program.':'Contoh tujuan sesuai sasaran program.',calculation:'Tidak berlaku — pemeriksaan kualitatif.',correction:fatal?'Contoh: sesuaikan tujuan dengan sasaran program.':'Tinjau sebelum memutuskan.',confidence:88,references:[]},{aspect:'Alokasi anggaran (contoh)',status:fatal?'discrepancy':'aligned',severity:fatal?'fatal':'info',location:'Contoh RAB — bukan lokasi dokumen Anda',quote:'Data contoh: 100 peserta × Rp50.000',reason:fatal?'Contoh total tertulis Rp6.000.000, hasil perkalian Rp5.000.000.':'Contoh total Rp5.000.000 konsisten.',calculation:'100 × Rp50.000 = Rp5.000.000'+(fatal?'\nRp6.000.000 − Rp5.000.000 = Rp1.000.000 selisih':''),correction:fatal?'Contoh: perbaiki total dan rincian RAB.':'Periksa satuan dan bukti.',confidence:88,references:[]}]};
 }
 export async function screenSubmission(s,refs,{fetchImpl=fetch,signal}={}) {
   if(!process.env.OPENAI_API_KEY||!process.env.OPENAI_MODEL) throw Error('AI belum dikonfigurasi. Pengajuan tersimpan; screening dapat dicoba kembali.');
