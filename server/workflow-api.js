@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { initWorkflow,records,save,actorFrom,requireRocan,referenceInput,referenceActive,todayJakarta,publicSubmission,newSubmission,reviseSubmission,submissionFile,decide } from './workflow.js';
+import { initWorkflow,records,save,actorFrom,requireRocan,referenceInput,referenceActive,todayJakarta,publicSubmission,newProgram,programList,attachProgram,newSubmission,reviseSubmission,submissionFile,decide } from './workflow.js';
 import { screenSubmission,simulationScreening } from './workflow-screening.js';
 const busy=new Set();
 export async function workflowApi(req,res,db,send,readBody) {
@@ -10,6 +10,11 @@ export async function workflowApi(req,res,db,send,readBody) {
     const actor=actorFrom(req);
     if(req.method!=='GET' && req.headers.origin && ![`http://${req.headers.host}`,`https://${req.headers.host}`].includes(req.headers.origin)) {send(res,403,{error:'Asal permintaan tidak diizinkan.'});return true;}
     const parts=path.split('/').filter(Boolean), kind=parts[2], id=parts[3], action=parts[4];
+    const programs=programList(records(db,'program'),records(db,'submission'));
+    if(kind==='programs'){
+      if(req.method==='GET'&&!id){send(res,200,programs.filter(p=>actor.role==='rocan'||p.owner===actor.email));return true;}
+      if(req.method==='POST'&&!id){const p=newProgram(await readBody(req),actor);save(db,'program',p);send(res,201,p);return true;}
+    }
     if(kind==='references') {
       requireRocan(actor);
       const docs=records(db,'reference');
@@ -22,7 +27,7 @@ export async function workflowApi(req,res,db,send,readBody) {
     if(kind==='submissions') {
       const all=records(db,'submission'), canSee=s=>actor.role==='rocan'||s.owner===actor.email;
       if(req.method==='GET'&&!id) {send(res,200,all.filter(canSee).sort((a,b)=>b.createdAt.localeCompare(a.createdAt)).map(s=>publicSubmission(s,actor)));return true;}
-      if(req.method==='POST'&&!id) {if(actor.role!=='satker')throw Error('Pengajuan dibuat oleh Satker.');const s=newSubmission(await readBody(req),actor);save(db,'submission',s);send(res,201,publicSubmission(s,actor,true));return true;}
+      if(req.method==='POST'&&!id) {if(actor.role!=='satker')throw Error('Pengajuan dibuat oleh Satker.');const s=newSubmission(attachProgram(await readBody(req),actor,programs),actor);save(db,'submission',s);send(res,201,publicSubmission(s,actor,true));return true;}
       const s=all.find(s=>s.id===id&&canSee(s));
       if(!s) {send(res,404,{error:'Pengajuan tidak ditemukan.'});return true;}
       if(req.method==='GET'&&action==='file') {const f=submissionFile(s,url.searchParams.get('kind'),url.searchParams.get('version'));send(res,200,f);return true;}
@@ -33,7 +38,7 @@ export async function workflowApi(req,res,db,send,readBody) {
         if(body.combined===true&&!s.combined&&!body.tor) throw Error('Unggah PDF gabungan baru yang memuat TOR dan RAB.');
         const latest=records(db,'submission').find(r=>r.id===id);
         if(latest.updatedAt!==s.updatedAt||busy.has(id)) throw Error('Pengajuan telah berubah. Muat ulang sebelum mengedit.');
-        const updated=reviseSubmission(s,body,actor);save(db,'submission',updated);send(res,200,publicSubmission(updated,actor,true));return true;
+        const updated=reviseSubmission(s,attachProgram(body,actor,programs,s),actor);save(db,'submission',updated);send(res,200,publicSubmission(updated,actor,true));return true;
       }
       if(req.method==='POST'&&action==='decision') {const body=await readBody(req),latest=records(db,'submission').find(r=>r.id===id);const updated=decide(latest,actor,body);save(db,'submission',updated);send(res,200,publicSubmission(updated,actor,true));return true;}
       if(req.method==='POST'&&action==='screen') {

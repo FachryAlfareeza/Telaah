@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {openDatabase} from './database.js';
-import {initWorkflow,submissionInput,referenceInput,referenceActive,records,save,newSubmission,publicSubmission,decide,reviseSubmission,submissionFile} from './workflow.js';
+import {initWorkflow,submissionInput,referenceInput,referenceActive,records,save,newSubmission,publicSubmission,decide,reviseSubmission,submissionFile,newProgram,programList,attachProgram,outputRows} from './workflow.js';
 import {normalizeScreening,screenSubmission,requiredAspects} from './workflow-screening.js';
 import {workflowApi} from './workflow-api.js';
 const pdf={name:'contoh.pdf',data:Buffer.from('%PDF-1.4\nTest fixture only\n%%EOF').toString('base64')};
@@ -57,7 +57,12 @@ test('Workflow API persists revision/resubmission/decision flow and enforces rol
     assert.equal((await call(rocan,`references/${doc.id}`,'PATCH',{enabled:false})).status,200);
     assert.equal(records(db,'reference')[0].enabled,false);
     assert.equal((await call(rocan,`references/${doc.id}`,'PATCH',{enabled:true,end:'2025-01-01'})).status,400);
-    const created=await call(satker,'submissions','POST',input),id=created.data.id;assert.equal(created.status,201);
+    const program=await call(satker,'programs','POST',input);assert.equal(program.status,201);
+    assert.equal((await call(rocan,'programs','POST',input)).status,400);
+    assert.equal((await call({...satker,email:'other@example.test'},'programs')).data.length,0);
+    assert.equal((await call({...satker,email:'other@example.test'},'submissions','POST',{...input,programId:program.data.id})).status,400);
+    const sibling=await call(satker,'submissions','POST',{...input,programId:program.data.id,title:'Sibling event',ros:[{id:'a',name:'Peserta',volume:30,unit:'orang'},{id:'b',name:'Laporan',volume:1,unit:'dokumen'}]});assert.equal(sibling.status,201);assert.equal(sibling.data.ros.length,2);
+    const created=await call(satker,'submissions','POST',{...input,programId:program.data.id}),id=created.data.id;assert.equal(created.status,201);
     assert.equal((await call({...satker,email:'other@example.test'},`submissions/${id}`)).status,404);
     assert.equal((await call({...satker,email:'other@example.test'},'submissions')).data.length,0);
     const revision=await call(satker,`submissions/${id}/screen`,'POST',{demo:true,scenario:'revision'});assert.equal(revision.data.status,'needs_revision');assert.equal(revision.data.screening.findings.length,2);
@@ -66,9 +71,9 @@ test('Workflow API persists revision/resubmission/decision flow and enforces rol
     const full=await call(rocan,`submissions/${id}`);assert.equal(full.data.screening.confidence,88);assert.equal(full.data.screening.findings.length,2);
     assert.equal((await call(satker,`submissions/${id}/decision`,'POST',{decision:'approved',note:'Ya'})).status,400);
     assert.equal((await call(rocan,`submissions/${id}/decision`,'POST',{decision:'approved',note:'Ditinjau.'})).data.status,'approved');
-    assert.equal(records(db,'submission')[0].status,'approved');
+    assert.equal(records(db,'submission').find(s=>s.id===id).status,'approved');
     assert.equal((await call(satker,`submissions/${id}`,'PUT',input)).status,400);
-    const pending=await call(satker,'submissions','POST',{...input,combined:false,rab:pdf});
+    const pending=await call(satker,'submissions','POST',{...input,programId:program.data.id,combined:false,rab:pdf});
     assert.equal((await call(satker,`submissions/${pending.data.id}`,'PUT',{...input,tor:null})).status,400);
     assert.equal((await call(rocan,`submissions/${pending.data.id}/decision`,'POST',{decision:'approved',note:'x'})).status,400);
   } finally {db.close();}
@@ -86,7 +91,7 @@ test('AI request includes separate RAB and reference PDFs; response confidence i
 test('Planning fields, categories, and other activity type are validated',()=>{
   for(const urgency of ['1','2','3','4']) assert.equal(submissionInput({...input,urgency}).urgency,urgency);
   for(const invalid of [{urgency:'5'},{programName:''},{roVolume:0},{type:'Lainnya',otherType:''}])assert.throws(()=>submissionInput({...input,...invalid}));
-  assert.equal(submissionInput({...input,type:'Lainnya',otherType:'Pengajian'}).otherType,'Pengajian');
+  assert.equal(submissionInput({...input,type:'Lainnya',otherType:'Pendampingan teknis'}).otherType,'Pendampingan teknis');
 });
 test('Versions preserve old PDFs and field differences without leaking bytes in public responses',()=>{
   const first=newSubmission(input,satker),replacement={...pdf,data:Buffer.from('%PDF-1.4 new contents').toString('base64')};
@@ -100,4 +105,23 @@ test('Versions preserve old PDFs and field differences without leaking bytes in 
   assert.throws(()=>reviseSubmission(first,input,{...satker,email:'other@example.test'}));
   const {versions,...legacy}=first;
   assert.equal(reviseSubmission(legacy,input,satker).versions[0].legacy,true);
+});
+
+test('One program owns multiple independent events with multiple outputs and immutable version snapshots',()=>{
+  const p=newProgram(input,satker),ros=[{id:'r1',code:'001',name:'Peserta terlatih',volume:30,unit:'orang'},{id:'r2',code:'002',name:'Laporan evaluasi',volume:1,unit:'laporan'}];
+  const body=attachProgram({...input,programId:p.id,ros},satker,[p]);
+  const a=newSubmission(body,satker),b=newSubmission({...body,title:'Kegiatan kedua'},satker);
+  assert.equal(a.programId,b.programId);assert.notEqual(a.id,b.id);assert.equal(a.ros.length,2);
+  const changed=reviseSubmission(a,{...body,ros:[{...ros[0],volume:40},ros[1],{id:'r3',name:'Panduan',volume:1,unit:'dokumen'}]},satker);
+  assert.equal(changed.versions[0].proposal.ros.length,2);assert.equal(changed.versions[0].proposal.ros[0].volume,30);
+  assert.equal(changed.versions[1].changes.find(c=>c.field==='ros').after.length,3);
+  assert.equal(b.ros[0].volume,30);
+  assert.throws(()=>attachProgram(body,{...satker,email:'other@example.test'},[p]));
+  assert.throws(()=>attachProgram({...body,programId:'other'},satker,[p],a));
+  for(const invalid of [[],[{...ros[0],volume:0}],[ros[0],ros[0]]])assert.throws(()=>submissionInput({...body,ros:invalid}));
+  const old={...a,programId:null,ros:undefined,roName:'Legacy output',roVolume:2,roUnit:'orang'};
+  assert.equal(outputRows(old).length,1);
+  const parents=programList([], [old]);assert.equal(parents.length,1);
+  const revised={...old,...attachProgram(input,satker,parents,old)};
+  assert.equal(programList([], [revised]).length,1);
 });

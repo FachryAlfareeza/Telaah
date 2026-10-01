@@ -1,4 +1,4 @@
-import {newSubmission,reviseSubmission,submissionFile,referenceInput,referenceActive,todayJakarta,publicSubmission,decide,requireRocan} from '../shared/workflow.js';
+import {newProgram,programList,attachProgram,newSubmission,reviseSubmission,submissionFile,referenceInput,referenceActive,todayJakarta,publicSubmission,decide,requireRocan} from '../shared/workflow.js';
 import {simulationScreening} from '../shared/workflow-simulation.js';
 
 // Pages has no server. Keep uploaded demo files in this browser only.
@@ -26,6 +26,11 @@ const save=(kind,record)=>transaction('readwrite',(store,done)=>{store.put({...r
 export async function pagesApi(user,path,method='GET',body={}) {
   if(!['satker','rocan'].includes(user.role)||!user.email)throw Error('Masuk kembali untuk menjalankan demo.');
   const url=new URL(path,'https://demo.local/'),[kind,id,action]=url.pathname.slice(1).split('/'),rows=await all();
+  const programs=programList(rows.filter(r=>r.kind==='program'),rows.filter(r=>r.kind==='submission'));
+  if(kind==='programs'){
+    if(method==='GET'&&!id)return programs.filter(p=>user.role==='rocan'||p.owner===user.email);
+    if(method==='POST'&&!id){const p=newProgram(body,user);await save('program',p);return p;}
+  }
   if(kind==='references') {
     requireRocan(user);
     const docs=rows.filter(r=>r.kind==='reference'),d=docs.find(r=>r.id===id);
@@ -37,12 +42,12 @@ export async function pagesApi(user,path,method='GET',body={}) {
   if(kind==='submissions') {
     const submissions=rows.filter(r=>r.kind==='submission'&&(user.role==='rocan'||r.owner===user.email));
     if(method==='GET'&&!id)return submissions.sort((a,b)=>b.createdAt.localeCompare(a.createdAt)).map(s=>publicSubmission(s,user));
-    if(method==='POST'&&!id){if(user.role!=='satker')throw Error('Pengajuan dibuat oleh Satker.');const s=newSubmission(body,user);await save('submission',s);return publicSubmission(s,user,true);}
+    if(method==='POST'&&!id){if(user.role!=='satker')throw Error('Pengajuan dibuat oleh Satker.');const s=newSubmission(attachProgram(body,user,programs),user);await save('submission',s);return publicSubmission(s,user,true);}
     const s=submissions.find(r=>r.id===id);if(!s)throw Error('Pengajuan tidak ditemukan.');
     if(method==='GET'&&action==='file'){return submissionFile(s,url.searchParams.get('kind'),url.searchParams.get('version'));}
     if(method==='GET'&&!action)return publicSubmission(s,user,true);
     if(method==='PUT'&&!action){
-      const updated=reviseSubmission(s,body,user);
+      const updated=reviseSubmission(s,attachProgram(body,user,programs,s),user);
       await save('submission',updated);return publicSubmission(updated,user,true);
     }
     if(method==='POST'&&action==='screen'){

@@ -19,18 +19,39 @@ export function validatePdf(file) {
   return {name:file.name.slice(0,200),data:file.data};
 }
 function required(value,label,max=200) { if(typeof value!=='string'||!value.trim()||value.length>max) throw Error(`${label} wajib diisi (maksimum ${max} karakter).`); return value.trim(); }
+export function programInput(b){return {programName:required(b.programName,'Nama program'),programMission:required(b.programMission,'Misi program',3000),programOutput:required(b.programOutput,'Output program',3000),programTarget:required(b.programTarget,'Sasaran program',1000)};}
+export function newProgram(b,actor){if(actor.role!=='satker')throw Error('Program dibuat oleh Satker.');return {...programInput(b),id:randomUUID(),owner:actor.email,satker:actor.satker,createdAt:new Date().toISOString()};}
+export function programList(programs,submissions){
+  const list=[...programs];
+  for(const s of submissions)if((!s.programId||s.programId===`legacy-${s.id}`)&&!list.some(p=>p.id===`legacy-${s.id}`))list.push({id:`legacy-${s.id}`,owner:s.owner,satker:s.satker,createdAt:s.createdAt,programName:s.programName||s.title,programMission:s.programMission||s.description,programOutput:s.programOutput||'Belum diisi',programTarget:s.programTarget||'Belum diisi',legacy:true});
+  return list;
+}
+export function attachProgram(body,actor,programs,existing){
+  const id=existing?(existing.programId||`legacy-${existing.id}`):body.programId;
+  if(existing&&body.programId&&body.programId!==id)throw Error('Program induk pengajuan tidak dapat diubah.');
+  const p=programs.find(p=>p.id===id&&p.owner===actor.email);
+  if(!p)throw Error('Pilih program milik Satker Anda.');
+  return {...body,...programInput(p),programId:p.id};
+}
+export function outputRows(s){return Array.isArray(s.ros)?s.ros:s.roName?[{id:'legacy-ro',code:s.roCode||'',name:s.roName,volume:s.roVolume,unit:s.roUnit}]:[];}
+function validateOutputs(body){
+  const rows=outputRows(body);
+  if(!rows.length||rows.length>100)throw Error('Isi 1 sampai 100 Rincian Output.');
+  const ids=new Set();
+  return rows.map(r=>{if(!r||typeof r!=='object')throw Error('Rincian Output tidak valid.');const id=typeof r.id==='string'&&r.id.length<=100?r.id:randomUUID();if(ids.has(id))throw Error('ID Rincian Output harus unik.');ids.add(id);if(!Number.isFinite(Number(r.volume))||Number(r.volume)<=0)throw Error('Volume RO harus lebih dari nol.');return {id,code:typeof r.code==='string'?r.code.trim().slice(0,100):'',name:required(r.name,'Nama Rincian Output',1000),volume:Number(r.volume),unit:required(r.unit,'Satuan RO',100)};});
+}
 export function submissionInput(body) {
   if(!validDate(body.date)) throw Error('Tanggal kegiatan tidak valid.');
   if(typeof body.combined!=='boolean') throw Error('Pilih susunan dokumen TOR/RAB.');
   if(!Object.hasOwn(urgencies,body.urgency)) throw Error('Pilih tingkat urgensi kegiatan.');
-  if(!Number.isFinite(Number(body.roVolume))||Number(body.roVolume)<=0) throw Error('Volume RO harus lebih dari nol.');
-  return {programName:required(body.programName,'Nama program'),programMission:required(body.programMission,'Misi program',3000),programOutput:required(body.programOutput,'Output program',3000),programTarget:required(body.programTarget,'Sasaran program',1000),title:required(body.title,'Judul'),description:required(body.description,'Deskripsi',5000),date:body.date,type:required(body.type,'Jenis kegiatan'),otherType:body.type==='Lainnya'?required(body.otherType,'Jenis kegiatan lainnya'):'',urgency:body.urgency,urgencyReason:required(body.urgencyReason,'Alasan urgensi',3000),roCode:typeof body.roCode==='string'?body.roCode.trim().slice(0,100):'',roName:required(body.roName,'Rincian Output',1000),roVolume:Number(body.roVolume),roUnit:required(body.roUnit,'Satuan RO',100),combined:body.combined,tor:validatePdf(body.tor),rab:body.combined?null:validatePdf(body.rab)};
+  const ros=validateOutputs(body);
+  return {programName:required(body.programName,'Nama program'),programMission:required(body.programMission,'Misi program',3000),programOutput:required(body.programOutput,'Output program',3000),programTarget:required(body.programTarget,'Sasaran program',1000),title:required(body.title,'Judul'),description:required(body.description,'Deskripsi',5000),date:body.date,type:required(body.type,'Jenis kegiatan'),otherType:body.type==='Lainnya'?required(body.otherType,'Jenis kegiatan lainnya'):'',urgency:body.urgency,urgencyReason:required(body.urgencyReason,'Alasan urgensi',3000),programId:body.programId||null,ros,combined:body.combined,tor:validatePdf(body.tor),rab:body.combined?null:validatePdf(body.rab)};
 }
 export const urgencies={'1':'Kategori 1','2':'Kategori 2','3':'Kategori 3','4':'Kategori 4'};
-export const proposalFields={programName:'Nama program',programMission:'Misi program',programOutput:'Output program',programTarget:'Sasaran program',title:'Nama kegiatan',description:'Deskripsi kegiatan',date:'Tanggal kegiatan',type:'Jenis kegiatan',otherType:'Jenis lainnya',urgency:'Urgensi',urgencyReason:'Alasan urgensi',roCode:'Kode RO',roName:'Rincian Output',roVolume:'Volume RO',roUnit:'Satuan RO',combined:'Susunan dokumen'};
-export function proposalSnapshot(s){return Object.fromEntries([...Object.keys(proposalFields),'tor','rab'].map(k=>[k,s[k]??null]));}
+export const proposalFields={programName:'Nama program',programMission:'Misi program',programOutput:'Output program',programTarget:'Sasaran program',title:'Nama kegiatan',description:'Deskripsi kegiatan',date:'Tanggal kegiatan',type:'Jenis kegiatan',otherType:'Jenis lainnya',urgency:'Urgensi',urgencyReason:'Alasan urgensi',ros:'Rincian Output',combined:'Susunan dokumen'};
+export function proposalSnapshot(s){return Object.fromEntries([...Object.keys(proposalFields),'programId','tor','rab'].map(k=>[k,k==='ros'?outputRows(s):s[k]??null]));}
 export function proposalChanges(before,after){
-  const changes=Object.keys(proposalFields).filter(k=>(before[k]??null)!==(after[k]??null)).map(field=>({field,before:before[field]??null,after:after[field]??null}));
+  const changes=Object.keys(proposalFields).filter(k=>JSON.stringify(k==='ros'?outputRows(before):before[k]??null)!==JSON.stringify(k==='ros'?outputRows(after):after[k]??null)).map(field=>({field,before:field==='ros'?outputRows(before):before[field]??null,after:field==='ros'?outputRows(after):after[field]??null}));
   for(const field of ['tor','rab'])if(before[field]?.data!==after[field]?.data||before[field]?.name!==after[field]?.name)changes.push({field,before:before[field]?.name||null,after:after[field]?.name||null,replaced:!!before[field]&&!!after[field]&&before[field].data!==after[field].data});
   return changes;
 }

@@ -27,7 +27,7 @@ Or double-click `start.cmd`. Vite serves both the UI and API. For production bui
 ## Try the two roles
 
 1. Choose **Demo Satker** on the login screen, or register a local example account with the Satker role and unit name.
-2. Select **Ajukan kegiatan** and follow **Program > Kegiatan > Klasifikasi > RO**. Define the program name, mission, output and beneficiaries; describe the activity and date; choose Kategori 1 through Kategori 4 (ascending urgency) with a reason; then specify Rincian Output, volume and unit. Choosing **Lainnya** requires a custom activity type. Upload one PDF containing both TOR and RAB, or separate TOR and RAB PDFs. Each file is limited to 10 MB.
+2. Select **Buat program** to save the program name, mission, output and beneficiaries. Programs are reusable parent records. Choose **Tambah kegiatan** within a program to create each independent proposal; select its Kategori 1 through Kategori 4 (ascending urgency), upload TOR/RAB, and use **Tambah RO** for multiple Rincian Output rows with separate codes, targets and units. Choosing **Lainnya** requires a custom type, for example pendampingan teknis. Program, activities, and ROs form a hierarchy, not wizard steps.
 3. For offline workflow testing, explicitly choose **Simulasi · lanjut ke Rocan** or **Simulasi · perlu perbaikan**. These are prepared examples and do not analyze uploaded content. All simulation findings and submissions are labeled.
 4. Satker sees correction findings and can revise and resubmit a returned application. Existing PDFs may be retained when revising. Each submission/resubmission saves a numbered snapshot with author and timestamp. **Versi pengajuan** compares changed fields with the preceding version, shows the full proposal, and downloads the PDFs from that version. Legacy records start with their latest available snapshot; earlier edits cannot be reconstructed. Versioning begins on submission, not on each draft keystroke.
 5. Log out and choose **Demo Rocan**. The same server database supplies submissions across Satker accounts. Sort by submission time and filter by submission date, Satker, or status.
@@ -37,6 +37,10 @@ Or double-click `start.cmd`. Vite serves both the UI and API. For production bui
 ## Readability
 
 Primary workflow and login text uses 20px, with supporting labels at 18px and larger controls. Both themes retain responsive layouts.
+
+Existing proposals remain readable: each legacy proposal supplies its own parent program unless it already has an explicit program link, and a legacy single RO is displayed as one output row. Same-name programs are not automatically merged. Each activity retains separate documents, screening, decisions, and versions. Output changes are recorded in the before/after version table; program data is captured with each submission.
+
+UI text files are UTF-8. Static interface separators use normal ASCII dashes for consistent rendering.
 
 ## Workflow states
 
@@ -93,7 +97,7 @@ Telaah/
 ├── src/
 │   ├── main.jsx               # React entry point and stylesheet imports
 │   ├── AuthApp.jsx            # Mock login, registration, and session handling
-│   ├── ProposalFlow.jsx       # Four-step proposal form and version viewer
+│   ├── ProposalFlow.jsx       # Program hierarchy, multiple ROs, and version viewer
 │   ├── WorkflowApp.jsx        # Satker submissions, Rocan review, reference library
 │   ├── pages-api.js           # IndexedDB workflow adapter for the Pages demo
 │   ├── workflow.css           # Responsive workflow and role dashboards

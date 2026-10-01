@@ -8,3 +8,5 @@
 .wf-app.ai-workspace :is(.button,.wf-link,.theme-toggle){font-size:20px;min-height:52px}
 
 .wf-app.ai-workspace button:is(.button,.wf-link,.theme-toggle){font-size:20px;min-height:52px}
+
+.wf-parent-program{padding:20px;background:var(--surface-soft);border-left:4px solid var(--accent);border-radius:8px}.wf-ro-card{display:grid;gap:18px;padding:20px;margin:16px 0;border:1px solid var(--control-border);border-radius:10px;min-width:0}.wf-ro-card legend{padding:0 8px;font-weight:600}.wf-ro-card>.button{justify-self:start}.wf-event-children{border-left:3px solid var(--border);padding-left:22px;display:grid;gap:18px}.wf-event-node{padding:20px;background:var(--surface-soft);border:1px solid var(--border);border-radius:10px}.wf-app h3{font-size:22px;line-height:1.5}.wf-events-heading{margin:24px 0 16px}.wf-event-node .wf-link{margin-top:16px}.wf-proposal-summary>div:has(table){grid-column:1/-1}.wf-version-value:has(table){min-width:300px}.wf-output-editor{min-width:0}@media(max-width:760px){.wf-event-children{padding-left:12px}.wf-event-node,.wf-ro-card{padding:16px}}
