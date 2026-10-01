@@ -3,13 +3,14 @@ import { resolve } from 'node:path';
 import { openDatabase, library, retrieve } from './database.js';
 import { validateInput, analyzeWithAI } from './analysis.js';
 import { seedDemo, demoAnalysis } from './demo.js';
+import { workflowApi } from './workflow-api.js';
 if (existsSync(resolve('.env'))) process.loadEnvFile(resolve('.env'));
 let database;
 const getDatabase = () => { if (!database) { database = openDatabase(); seedDemo(database); } return database; };
 const send = (res,status,body) => { res.writeHead(status,{ 'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff' }); res.end(JSON.stringify(body)); };
 async function readBody(req) {
   let size = 0; const chunks = [];
-  for await (const chunk of req) { size += chunk.length; if (size > 15000000) throw Error('Ukuran permintaan terlalu besar (PDF maksimum 10 MB).'); chunks.push(chunk); }
+  for await (const chunk of req) { size += chunk.length; if (size > 29000000) throw Error('Ukuran permintaan terlalu besar (maksimum 10 MB per PDF).'); chunks.push(chunk); }
   try { return JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { throw Error('Data permintaan tidak valid.'); }
 }
 let inFlight = 0;
@@ -17,6 +18,7 @@ export async function apiMiddleware(req,res,next) {
   const path = (req.url || '').split('?')[0];
   if (!path.startsWith('/api/')) { next(); return; }
   try {
+    if (await workflowApi(req,res,getDatabase(),send,readBody)) return;
     if (req.method === 'GET' && path === '/api/status') {
       const documents = library(getDatabase());
       send(res,200,{ aiConfigured:!!(process.env.OPENAI_API_KEY && process.env.OPENAI_MODEL), documents, ready:!!(process.env.OPENAI_API_KEY && process.env.OPENAI_MODEL && documents.some(d => !d.is_demo)), demoAvailable:true }); return;
