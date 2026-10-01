@@ -1,4 +1,4 @@
-import {newSubmission,submissionInput,referenceInput,referenceActive,todayJakarta,publicSubmission,decide,requireRocan} from '../shared/workflow.js';
+import {newSubmission,reviseSubmission,submissionFile,referenceInput,referenceActive,todayJakarta,publicSubmission,decide,requireRocan} from '../shared/workflow.js';
 import {simulationScreening} from '../shared/workflow-simulation.js';
 
 // Pages has no server. Keep uploaded demo files in this browser only.
@@ -39,12 +39,10 @@ export async function pagesApi(user,path,method='GET',body={}) {
     if(method==='GET'&&!id)return submissions.sort((a,b)=>b.createdAt.localeCompare(a.createdAt)).map(s=>publicSubmission(s,user));
     if(method==='POST'&&!id){if(user.role!=='satker')throw Error('Pengajuan dibuat oleh Satker.');const s=newSubmission(body,user);await save('submission',s);return publicSubmission(s,user,true);}
     const s=submissions.find(r=>r.id===id);if(!s)throw Error('Pengajuan tidak ditemukan.');
-    if(method==='GET'&&action==='file'){const file=url.searchParams.get('kind')==='rab'?s.rab:s.tor;if(!file)throw Error('Berkas tidak tersedia.');return file;}
+    if(method==='GET'&&action==='file'){return submissionFile(s,url.searchParams.get('kind'),url.searchParams.get('version'));}
     if(method==='GET'&&!action)return publicSubmission(s,user,true);
     if(method==='PUT'&&!action){
-      if(user.role!=='satker'||!['needs_revision','pending_screening'].includes(s.status))throw Error('Pengajuan ini tidak dapat diedit.');
-      if(body.combined===true&&!s.combined&&!body.tor)throw Error('Unggah PDF gabungan baru yang memuat TOR dan RAB.');
-      const now=new Date().toISOString(),updated={...s,...submissionInput({...body,tor:body.tor||s.tor,rab:body.rab||s.rab}),status:'pending_screening',screening:null,screeningError:null,decision:null,updatedAt:now,history:[...s.history,{at:now,by:user.name,action:'Diajukan ulang'}]};
+      const updated=reviseSubmission(s,body,user);
       await save('submission',updated);return publicSubmission(updated,user,true);
     }
     if(method==='POST'&&action==='screen'){

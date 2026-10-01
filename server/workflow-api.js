@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { initWorkflow,records,save,actorFrom,requireRocan,referenceInput,referenceActive,todayJakarta,publicSubmission,newSubmission,submissionInput,decide } from './workflow.js';
+import { initWorkflow,records,save,actorFrom,requireRocan,referenceInput,referenceActive,todayJakarta,publicSubmission,newSubmission,reviseSubmission,submissionFile,decide } from './workflow.js';
 import { screenSubmission,simulationScreening } from './workflow-screening.js';
 const busy=new Set();
 export async function workflowApi(req,res,db,send,readBody) {
@@ -25,7 +25,7 @@ export async function workflowApi(req,res,db,send,readBody) {
       if(req.method==='POST'&&!id) {if(actor.role!=='satker')throw Error('Pengajuan dibuat oleh Satker.');const s=newSubmission(await readBody(req),actor);save(db,'submission',s);send(res,201,publicSubmission(s,actor,true));return true;}
       const s=all.find(s=>s.id===id&&canSee(s));
       if(!s) {send(res,404,{error:'Pengajuan tidak ditemukan.'});return true;}
-      if(req.method==='GET'&&action==='file') {const f=url.searchParams.get('kind')==='rab'?s.rab:s.tor;if(!f)throw Error('Berkas tidak tersedia.');send(res,200,f);return true;}
+      if(req.method==='GET'&&action==='file') {const f=submissionFile(s,url.searchParams.get('kind'),url.searchParams.get('version'));send(res,200,f);return true;}
       if(req.method==='GET'&&!action) {send(res,200,publicSubmission(s,actor,true));return true;}
       if(req.method==='PUT'&&!action) {
         if(actor.role!=='satker'||!['needs_revision','pending_screening'].includes(s.status)||busy.has(id))throw Error('Pengajuan ini tidak dapat diedit.');
@@ -33,7 +33,7 @@ export async function workflowApi(req,res,db,send,readBody) {
         if(body.combined===true&&!s.combined&&!body.tor) throw Error('Unggah PDF gabungan baru yang memuat TOR dan RAB.');
         const latest=records(db,'submission').find(r=>r.id===id);
         if(latest.updatedAt!==s.updatedAt||busy.has(id)) throw Error('Pengajuan telah berubah. Muat ulang sebelum mengedit.');
-        const updated={...s,...submissionInput({...body,tor:body.tor||s.tor,rab:body.rab||s.rab}),status:'pending_screening',screening:null,screeningError:null,decision:null,updatedAt:now,history:[...s.history,{at:now,by:actor.name,action:'Diajukan ulang'}]};save(db,'submission',updated);send(res,200,publicSubmission(updated,actor,true));return true;
+        const updated=reviseSubmission(s,body,actor);save(db,'submission',updated);send(res,200,publicSubmission(updated,actor,true));return true;
       }
       if(req.method==='POST'&&action==='decision') {const body=await readBody(req),latest=records(db,'submission').find(r=>r.id===id);const updated=decide(latest,actor,body);save(db,'submission',updated);send(res,200,publicSubmission(updated,actor,true));return true;}
       if(req.method==='POST'&&action==='screen') {

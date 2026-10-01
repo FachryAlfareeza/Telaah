@@ -22,7 +22,28 @@ function required(value,label,max=200) { if(typeof value!=='string'||!value.trim
 export function submissionInput(body) {
   if(!validDate(body.date)) throw Error('Tanggal kegiatan tidak valid.');
   if(typeof body.combined!=='boolean') throw Error('Pilih susunan dokumen TOR/RAB.');
-  return {title:required(body.title,'Judul'),description:required(body.description,'Deskripsi',5000),date:body.date,type:required(body.type,'Jenis kegiatan'),combined:body.combined,tor:validatePdf(body.tor),rab:body.combined?null:validatePdf(body.rab)};
+  if(!Object.hasOwn(urgencies,body.urgency)) throw Error('Pilih tingkat urgensi kegiatan.');
+  if(!Number.isFinite(Number(body.roVolume))||Number(body.roVolume)<=0) throw Error('Volume RO harus lebih dari nol.');
+  return {programName:required(body.programName,'Nama program'),programMission:required(body.programMission,'Misi program',3000),programOutput:required(body.programOutput,'Output program',3000),programTarget:required(body.programTarget,'Sasaran program',1000),title:required(body.title,'Judul'),description:required(body.description,'Deskripsi',5000),date:body.date,type:required(body.type,'Jenis kegiatan'),otherType:body.type==='Lainnya'?required(body.otherType,'Jenis kegiatan lainnya'):'',urgency:body.urgency,urgencyReason:required(body.urgencyReason,'Alasan urgensi',3000),roCode:typeof body.roCode==='string'?body.roCode.trim().slice(0,100):'',roName:required(body.roName,'Rincian Output',1000),roVolume:Number(body.roVolume),roUnit:required(body.roUnit,'Satuan RO',100),combined:body.combined,tor:validatePdf(body.tor),rab:body.combined?null:validatePdf(body.rab)};
+}
+export const urgencies={'1':'Kategori 1','2':'Kategori 2','3':'Kategori 3','4':'Kategori 4'};
+export const proposalFields={programName:'Nama program',programMission:'Misi program',programOutput:'Output program',programTarget:'Sasaran program',title:'Nama kegiatan',description:'Deskripsi kegiatan',date:'Tanggal kegiatan',type:'Jenis kegiatan',otherType:'Jenis lainnya',urgency:'Urgensi',urgencyReason:'Alasan urgensi',roCode:'Kode RO',roName:'Rincian Output',roVolume:'Volume RO',roUnit:'Satuan RO',combined:'Susunan dokumen'};
+export function proposalSnapshot(s){return Object.fromEntries([...Object.keys(proposalFields),'tor','rab'].map(k=>[k,s[k]??null]));}
+export function proposalChanges(before,after){
+  const changes=Object.keys(proposalFields).filter(k=>(before[k]??null)!==(after[k]??null)).map(field=>({field,before:before[field]??null,after:after[field]??null}));
+  for(const field of ['tor','rab'])if(before[field]?.data!==after[field]?.data||before[field]?.name!==after[field]?.name)changes.push({field,before:before[field]?.name||null,after:after[field]?.name||null,replaced:!!before[field]&&!!after[field]&&before[field].data!==after[field].data});
+  return changes;
+}
+export function proposalVersions(s){return s.versions?.length?s.versions:[{number:1,at:s.updatedAt||s.createdAt,by:s.owner,legacy:true,proposal:proposalSnapshot(s),changes:[]}];}
+export function reviseSubmission(s,body,actor){
+  if(actor.role!=='satker'||s.owner!==actor.email||!['needs_revision','pending_screening'].includes(s.status))throw Error('Pengajuan ini tidak dapat diedit.');
+  if(body.combined===true&&!s.combined&&!body.tor)throw Error('Unggah PDF gabungan baru yang memuat TOR dan RAB.');
+  const proposal=submissionInput({...body,tor:body.tor||s.tor,rab:body.rab||s.rab}),now=new Date().toISOString(),versions=proposalVersions(s);
+  return {...s,...proposal,status:'pending_screening',screening:null,screeningError:null,decision:null,updatedAt:now,versions:[...versions,{number:versions.length+1,at:now,by:actor.name,proposal,changes:proposalChanges(s,proposal)}],history:[...s.history,{at:now,by:actor.name,action:'Diajukan ulang',note:`Versi ${versions.length+1}`} ]};
+}
+export function submissionFile(s,kind,version){
+  const source=version?proposalVersions(s).find(v=>String(v.number)===version)?.proposal:s;
+  const file=source?.[kind==='rab'?'rab':'tor'];if(!file)throw Error('Berkas atau versi tidak tersedia.');return file;
 }
 export function referenceInput(body) {
   if(!validDate(body.start)|| (body.end && (!validDate(body.end)||body.end<body.start))) throw Error('Periode acuan tidak valid. Tanggal akhir harus setelah atau sama dengan tanggal mulai.');
@@ -31,11 +52,11 @@ export function referenceInput(body) {
 export function referenceActive(doc,date) { return doc.enabled && doc.start<=date && (!doc.end||doc.end>=date); }
 export function todayJakarta() { return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Jakarta',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()); }
 export function publicSubmission(s,actor,detail=false) {
-  const {tor,rab,screening,...rest}=s;
+  const {tor,rab,screening,versions,...rest}=s;
   const screen = !screening ? null : actor.role==='rocan' ? screening : {demo:screening.demo,summary:screening.demo?'Simulasi alur, bukan pemeriksaan dokumen.':screening.fatal?'Perbaiki temuan berikut dan ajukan ulang.':'Screening awal selesai. Menunggu peninjauan Rocan.',findings:screening.findings.filter(f=>f.status!=='aligned').map(({confidence,...f})=>f)};
-  return {...rest,isSimulation:screening?.demo===true,tor:{name:tor.name},rab:rab?{name:rab.name}:null,...(detail?{screening:screen}:{})};
+  return {...rest,isSimulation:screening?.demo===true,tor:{name:tor.name},rab:rab?{name:rab.name}:null,...(detail?{screening:screen,versions:proposalVersions(s).map(v=>({...v,proposal:{...v.proposal,tor:v.proposal.tor?{name:v.proposal.tor.name}:null,rab:v.proposal.rab?{name:v.proposal.rab.name}:null}}))}:{})};
 }
-export function newSubmission(body,actor) { const now=new Date().toISOString(); return {...submissionInput(body),id:randomUUID(),owner:actor.email,satker:actor.satker,status:'pending_screening',createdAt:now,updatedAt:now,screening:null,history:[{at:now,by:actor.name,action:'Diajukan'}]}; }
+export function newSubmission(body,actor) { const now=new Date().toISOString(),proposal=submissionInput(body); return {...proposal,id:randomUUID(),owner:actor.email,satker:actor.satker,status:'pending_screening',createdAt:now,updatedAt:now,screening:null,versions:[{number:1,at:now,by:actor.name,proposal,changes:[]}],history:[{at:now,by:actor.name,action:'Diajukan',note:'Versi 1'}]}; }
 export function decide(s,actor,body) {
   requireRocan(actor);
   if(!['queued','manual_review'].includes(s.status)) throw Error('Pengajuan belum siap atau sudah diputuskan.');

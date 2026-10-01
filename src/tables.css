@@ -2,7 +2,7 @@
 :root, :root[data-theme], html, body, #root { background-color:var(--page); min-height:100%; }
 html { height:100%; }
 body, #root, .app-shell, .ai-workspace .main-shell, .auth-page { min-height:100dvh; background-color:var(--page); }
-.ai-workspace .workspace { justify-content:center; text-align:center; flex-direction:column; gap:9px; font-size:16px; padding:18px 8px; }
+.ai-workspace:where(:not(.wf-app):not(.auth-page)) .workspace { justify-content:center; text-align:center; flex-direction:column; gap:9px; font-size:16px; padding:18px 8px; }
 .ai-workspace .ai-input-grid { grid-template-columns:1fr; }
 .ai-workspace .question-panel { padding-bottom:24px; }
 .check-editor { padding:0 24px 20px; }
@@ -41,15 +41,15 @@ body, #root, .app-shell, .ai-workspace .main-shell, .auth-page { min-height:100d
 .table-status.discrepancy { color:var(--error-ink); background:var(--error-bg); }
 .table-status.insufficient { color:var(--muted); background:var(--surface-soft); }
 .table-warning { color:var(--warning-ink); }
-.ai-workspace :is(.nav-item,.profile,.breadcrumb,.theme-toggle,.button,.input-tabs button,.setup-note,.submission-note,.text-counter,.auth-card label,.auth-note,.auth-tabs button,.human-review,.score-explainer,.analysis-limitations,.library-intro,.library-document p,.input-note,.help-content,.sample-tor,.upload-zone>span:not(.upload-symbol),.upload-zone small,.selected-file p,.selected-file small) { font-size:15px; line-height:1.6; }
-.ai-workspace :is(.panel-heading h2,.section-heading h2,.upload-zone strong,.result-empty h3) { font-size:20px; }
-.ai-workspace :is(.paste-content textarea,.auth-card input,.answer-header p,.sample-tor pre) { font-size:16px; line-height:1.7; }
-.ai-workspace .analysis-metrics span,.ai-workspace .analysis-metrics small { font-size:15px; line-height:1.6; }
+.ai-workspace:where(:not(.wf-app):not(.auth-page)) :is(.nav-item,.profile,.breadcrumb,.theme-toggle,.button,.input-tabs button,.setup-note,.submission-note,.text-counter,.auth-card label,.auth-note,.auth-tabs button,.human-review,.score-explainer,.analysis-limitations,.library-intro,.library-document p,.input-note,.help-content,.sample-tor,.upload-zone>span:not(.upload-symbol),.upload-zone small,.selected-file p,.selected-file small) { font-size:15px; line-height:1.6; }
+.ai-workspace:where(:not(.wf-app):not(.auth-page)) :is(.panel-heading h2,.section-heading h2,.upload-zone strong,.result-empty h3) { font-size:20px; }
+.ai-workspace:where(:not(.wf-app):not(.auth-page)) :is(.paste-content textarea,.auth-card input,.answer-header p,.sample-tor pre) { font-size:16px; line-height:1.7; }
+.ai-workspace:where(:not(.wf-app):not(.auth-page)) .analysis-metrics span,.ai-workspace:where(:not(.wf-app):not(.auth-page)) .analysis-metrics small { font-size:15px; line-height:1.6; }
 .ai-workspace .button,.ai-workspace .input-tabs button,.ai-workspace .logout-button,.ai-workspace .theme-toggle { min-height:44px; }
-.ai-workspace .nav-label { font-size:13px; }
-.ai-workspace .ai-status { font-size:14px; }
-.ai-workspace .demo-banner strong,.ai-workspace .demo-banner p { font-size:15px; }
+.ai-workspace:where(:not(.wf-app):not(.auth-page)) .nav-label { font-size:13px; }
+.ai-workspace:where(:not(.wf-app):not(.auth-page)) .ai-status { font-size:14px; }
+.ai-workspace:where(:not(.wf-app):not(.auth-page)) .demo-banner strong,.ai-workspace:where(:not(.wf-app):not(.auth-page)) .demo-banner p { font-size:15px; }
 .ai-workspace .panel-heading>span { display:none; }
-.ai-workspace .page-heading>.button { font-size:15px; gap:8px; }
+.ai-workspace:where(:not(.wf-app):not(.auth-page)) .page-heading>.button { font-size:15px; gap:8px; }
 @media(max-width:760px) { .check-editor { padding:0 16px 16px; } .ai-workspace .header-actions .ai-status { display:none; } .ai-workspace .page-heading { flex-wrap:wrap; } .ai-workspace .breadcrumb>span { display:none; } .ai-workspace .theme-toggle { min-width:44px; } .ai-workspace .analysis-metrics { grid-template-columns:1fr; } .ai-workspace .analysis-metrics>div:last-child { display:block; grid-column:auto; } .ai-workspace .result-heading { flex-wrap:wrap; } }
 @media print { .table-scroll { overflow:visible; } .findings-table { min-width:0; table-layout:auto; font-size:10pt; } .findings-table th,.findings-table td { padding:6px; } .findings-table tr { break-inside:avoid; } }

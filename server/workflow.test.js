@@ -1,12 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {openDatabase} from './database.js';
-import {initWorkflow,submissionInput,referenceInput,referenceActive,records,save,newSubmission,publicSubmission,decide} from './workflow.js';
+import {initWorkflow,submissionInput,referenceInput,referenceActive,records,save,newSubmission,publicSubmission,decide,reviseSubmission,submissionFile} from './workflow.js';
 import {normalizeScreening,screenSubmission,requiredAspects} from './workflow-screening.js';
 import {workflowApi} from './workflow-api.js';
 const pdf={name:'contoh.pdf',data:Buffer.from('%PDF-1.4\nTest fixture only\n%%EOF').toString('base64')};
 const satker={role:'satker',email:'unit@example.test',name:'Unit Test',satker:'Satker A'},rocan={role:'rocan',email:'review@example.test',name:'Rocan Test'};
-const input={title:'Pelatihan contoh',description:'Tujuan kegiatan contoh',date:'2026-09-29',type:'Pelatihan',combined:true,tor:pdf};
+const input={programName:'Program A',programMission:'Meningkatkan kompetensi',programOutput:'Lulusan pelatihan',programTarget:'Pegawai',urgency:'2',urgencyReason:'Kebutuhan tahunan',roName:'Peserta terlatih',roVolume:30,roUnit:'orang',title:'Pelatihan contoh',description:'Tujuan kegiatan contoh',date:'2026-09-29',type:'Pelatihan',combined:true,tor:pdf};
 const ref={id:'r1',title:'Acuan contoh',type:'Renstra',start:'2026-03-01',end:null,enabled:true,file:pdf};
 const finding={key:'goals',aspect:'Tujuan',status:'aligned',severity:'info',location:'TOR halaman 1',quote:'Tujuan contoh',reason:'Sesuai acuan',calculation:'Kualitatif',correction:'Tinjau',confidence:85,references:[{id:'r1',location:'Halaman 1',quote:'Sasaran contoh'}]};
 test('Combined and separate TOR/RAB uploads enforce required documents and valid dates',()=>{
@@ -81,4 +81,23 @@ test('AI request includes separate RAB and reference PDFs; response confidence i
     assert.equal(payload.input[0].content.filter(c=>c.type==='input_file').length,3);assert.equal(payload.store,false);assert.equal(result.confidence,85);
     await assert.rejects(()=>screenSubmission(input,[]),/acuan aktif/);
   } finally {if(oldKey===undefined)delete process.env.OPENAI_API_KEY;else process.env.OPENAI_API_KEY=oldKey;if(oldModel===undefined)delete process.env.OPENAI_MODEL;else process.env.OPENAI_MODEL=oldModel;}
+});
+
+test('Planning fields, categories, and other activity type are validated',()=>{
+  for(const urgency of ['1','2','3','4']) assert.equal(submissionInput({...input,urgency}).urgency,urgency);
+  for(const invalid of [{urgency:'5'},{programName:''},{roVolume:0},{type:'Lainnya',otherType:''}])assert.throws(()=>submissionInput({...input,...invalid}));
+  assert.equal(submissionInput({...input,type:'Lainnya',otherType:'Pengajian'}).otherType,'Pengajian');
+});
+test('Versions preserve old PDFs and field differences without leaking bytes in public responses',()=>{
+  const first=newSubmission(input,satker),replacement={...pdf,data:Buffer.from('%PDF-1.4 new contents').toString('base64')};
+  const second=reviseSubmission(first,{...input,title:'Judul baru',tor:replacement},satker);
+  assert.equal(second.versions.length,2);assert.equal(second.versions[0].proposal.title,input.title);
+  assert.equal(second.versions[1].changes.find(c=>c.field==='tor').replaced,true);
+  assert.equal(submissionFile(second,'tor','1').data,pdf.data);assert.equal(submissionFile(second,'tor','2').data,replacement.data);
+  assert.throws(()=>submissionFile(second,'tor','99'));
+  assert.equal(publicSubmission(second,satker,true).versions[0].proposal.tor.data,undefined);
+  assert.equal(publicSubmission(second,rocan).versions,undefined);
+  assert.throws(()=>reviseSubmission(first,input,{...satker,email:'other@example.test'}));
+  const {versions,...legacy}=first;
+  assert.equal(reviseSubmission(legacy,input,satker).versions[0].legacy,true);
 });
